@@ -1,6 +1,3 @@
-/**
-Redis 안에 있는 데이터 조회를 위해 사용
-*/
 package com.example.board.common.interceptor;
 
 import java.util.Comparator;
@@ -24,18 +21,23 @@ public class RedisLoggerService {
 
 	private final StringRedisTemplate stringRedisTemplate;
 
+	private static final String HEADER = "========================================================";
+
+	private static final String LINE = "-----------------------------------------------------------";
+
 	public void printAllRedisData() {
 
-		log.info("========================================================");
+		log.info(HEADER);
 		log.info("                 Redis Dump Start");
-		log.info("========================================================");
+		log.info(HEADER);
 
 		// 전체 Key 조회
 		Set<String> keys = stringRedisTemplate.keys("*");
 
 		// Key가 없는 경우
-		if (keys.isEmpty()) {
+		if (keys == null || keys.isEmpty()) {
 			log.info("No data");
+			return;
 		}
 
 		List<String> sortedKeys = keys.stream().sorted().toList();
@@ -53,27 +55,39 @@ public class RedisLoggerService {
 		// 4. Value 출력
 		for (int i = 0; i < sortedKeys.size(); i++) {
 			String key = sortedKeys.get(i);
-			log.info("-----------------------------------------------------------");
+			log.info(LINE);
 			log.info("[{}]", (i+1));
 			log.info("Key        : {}", key);
 			DataType type = stringRedisTemplate.type(key);
-			String typeName = type.name();
-			log.info("Type       : {}", typeName);
+			log.info("Type       : {}", type);
 			Long ttl = stringRedisTemplate.getExpire(key, TimeUnit.SECONDS);
-			log.info("TTL        : {}", ttl==-1L ? ttl + " (No Expiration)" : ttl + " sec");
-			printByValueFormat(type, key);
+			log.info("TTL        : {}", formatTTL(ttl));
+			printValue(type, key);
 			log.info("");
 
 		}
 
 
-		log.info("========================================================");
+		log.info(HEADER);
 		log.info("                  Redis Dump End");
-		log.info("========================================================");
+		log.info(HEADER);
 
 	}
 
-	public void printByValueFormat(DataType type, String key) {
+	private String formatTTL(Long ttl) {
+		if (ttl == null)
+			return "Unknown";
+
+		if (ttl == -2L)
+			return "Expired";
+
+		if (ttl == -1L)
+			return "No Expiration";
+
+		return ttl + " sec";
+	}
+
+	public void printValue(DataType type, String key) {
 		switch (type) {
 			case STRING:
 				log.info("Value:");
@@ -96,7 +110,7 @@ public class RedisLoggerService {
 				printHash(key);
 				break;
 			default:
-				log.info("(Unsupported Type)");
+				log.info("(Unsupported Type : {})", type);
 		}
 
 	}
